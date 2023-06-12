@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 
 
-def pa_generator(num_nodes, num_edges_per_new_node, delta, seed, parent_column=0, polya_flag=False, sorted_flag=False, binned_flag=False, python_object_flag=True, early_exit=None):
+def pa_generator(num_nodes, num_edges_per_new_node, delta, seed, parent_column=0, polya_flag=False, sorted_flag=False, python_object_flag=True, early_exit=None):
     """
     build a graph with the prefential attachment model in 
     [Garavaglia 2019] (www.doi.org/10.1017/apr.2019.36)
@@ -60,13 +60,6 @@ def pa_generator(num_nodes, num_edges_per_new_node, delta, seed, parent_column=0
         whether edges with the same child are to be sorted by parents in the 
         output graph, this is useful for counting the edges' multiplicity
         If polya_flag == 0, edges will NOT be sorted
-    binned_flag
-        binary, relevant only if polya_flag == 0
-        whether to bin the intervals before trying to find parents (as opposed to
-        finding them by binary searches)
-        In theory, the complexity of binning is O(T) whereas the complex
-        of binary search is O(T log T). In practice, it does not seem to speed
-        things up
     python_object_flag
         binary, whether to output the graph as an igraph graph object (as 
         opposed to an edge list)
@@ -102,9 +95,9 @@ def pa_generator(num_nodes, num_edges_per_new_node, delta, seed, parent_column=0
         betas[0] = 1
 
         edge_list_dummy = pa_generator_polya_numba(
-            10, 3, -1, betas[:10], unifs[:27], parent_column, sorted_flag, binned_flag, early_exit=9)
+            10, 3, -1, betas[:10], unifs[:27], parent_column, sorted_flag, early_exit=9)
         edge_list = pa_generator_polya_numba(num_nodes, num_edges_per_new_node, delta,
-                                             betas, unifs, parent_column, sorted_flag, binned_flag, early_exit=early_exit)
+                                             betas, unifs, parent_column, sorted_flag, early_exit=early_exit)
 
     if python_object_flag:
         graph = ig.Graph()
@@ -237,7 +230,7 @@ def create_bins(num_nodes, num_edges_per_new_node, delta, phis):
 
 
 @jit(nopython=True)
-def pa_generator_polya_numba(num_nodes, num_edges_per_new_node, delta, betas, unifs, parent_column, sorted_flag, binned_flag, early_exit=None):
+def pa_generator_polya_numba(num_nodes, num_edges_per_new_node, delta, betas, unifs, parent_column, sorted_flag, early_exit=None):
 
     # betas is a list of num_nodes independent random variables with
     # betas[i] ~ Beta(
@@ -261,12 +254,8 @@ def pa_generator_polya_numba(num_nodes, num_edges_per_new_node, delta, betas, un
     for i in range(num_nodes-1, 0, -1):
         phis[i-1] = phis[i] * betas[i-1] * (1 - betas[i]) / betas[i]
 
-    if binned_flag:
-        Ss, chi, bin_increment, parents_of_bins = create_bins(
-            num_nodes, num_edges_per_new_node, delta, phis)
-    else:
-        Ss = np.empty(num_nodes)
-        Ss[0] = phis[0]
+    Ss = np.empty(num_nodes)
+    Ss[0] = phis[0]
 
     if parent_column == 0:
         edge_list = [
@@ -282,14 +271,9 @@ def pa_generator_polya_numba(num_nodes, num_edges_per_new_node, delta, betas, un
     for ei in range(num_edges_per_new_node, num_edges):
 
         if ei % num_edges_per_new_node == 0:
-            if not binned_flag:
-                Ss[child] = Ss[child-1] + phis[child]
+            Ss[child] = Ss[child-1] + phis[child]
             child += 1
 
-        if binned_flag:
-            edge_list[ei][parent_column] = choose_parent_bin(
-                Ss, child, unifs[ei], bin_increment, parents_of_bins, chi)
-        else:
-            edge_list[ei][parent_column] = choose_parent(Ss[:child], unifs[ei])
+        edge_list[ei][parent_column] = choose_parent(Ss[:child], unifs[ei])
 
     return edge_list
