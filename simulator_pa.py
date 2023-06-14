@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 
 
-def pa_generator(num_nodes, num_edges_per_new_node, delta, seed, parent_column=0, polya_flag=False, sorted_flag=False, python_object_flag=True, early_exit=None):
+def pa_generator(num_nodes, num_edges_per_new_node, delta, seed, polya_flag=False, sorted_flag=False, python_object_flag=True, early_exit=None):
     """
     build a graph with the prefential attachment model in 
     [Garavaglia 2019] (www.doi.org/10.1017/apr.2019.36)
@@ -38,20 +38,15 @@ def pa_generator(num_nodes, num_edges_per_new_node, delta, seed, parent_column=0
         number of nodes in the graph
     num_edges_per_new_node
         number of edges attached to the new node each time
-    delta = parameter to control the rich-gets-richer effect
-            For smaller (more negative) delta, the effect is stronger
-            The power of of the tail of the degree distribution should be
-            tau = 3 + delta / m
-            We choose -m < delta < 0 to ensure 2 < tau < 3.
+    delta
+        parameter to control the rich-gets-richer effect
+        For smaller (more negative) delta, the effect is stronger
+        The power of of the tail of the degree distribution should be
+        tau = 3 + delta / m
+        We choose -m < delta < 0 to ensure 2 < tau < 3.
 
-    seed = seed for the random number geneator
-
-    parent_column
-        0 or 1, relevant only if python_object_flag == 0
-        column parent_column of the output edge list contains the parent of each 
-        edge
-        If python_object_flag == 1, then the first node of each edge is always
-        the parent, and hence this argument is irrelevant.
+    seed 
+        seed for the random number geneator
     polya_flag
         binary, whether to use Definition 2 in [Garavaglia 2019] for graph
         generation to speed up the codes
@@ -67,7 +62,6 @@ def pa_generator(num_nodes, num_edges_per_new_node, delta, seed, parent_column=0
     """
     assert (num_nodes > 1)
     assert (0 > delta > -num_edges_per_new_node)
-    assert (parent_column == 0 or parent_column == 1)
 
     # Adding edges in one go
 
@@ -78,9 +72,9 @@ def pa_generator(num_nodes, num_edges_per_new_node, delta, seed, parent_column=0
     if not polya_flag:
 
         edge_list_dummy = pa_generator_numba(
-            10, 3, -1, unifs[:27], parent_column)  # let numba warm up
+            10, 3, -1, unifs[:27], 0)  # let numba warm up
         edge_list = pa_generator_numba(
-            num_nodes, num_edges_per_new_node, delta, unifs, parent_column)
+            num_nodes, num_edges_per_new_node, delta, unifs, 0)
 
     # polya
     else:
@@ -95,9 +89,9 @@ def pa_generator(num_nodes, num_edges_per_new_node, delta, seed, parent_column=0
         betas[0] = 1
 
         edge_list_dummy = pa_generator_polya_numba(
-            10, 3, -1, betas[:10], unifs[:27], parent_column, sorted_flag, early_exit=9)
+            10, 3, -1, betas[:10], unifs[:27], 0, sorted_flag, early_exit=9)
         edge_list = pa_generator_polya_numba(num_nodes, num_edges_per_new_node, delta,
-                                             betas, unifs, parent_column, sorted_flag, early_exit=early_exit)
+                                             betas, unifs, 0, sorted_flag, early_exit=early_exit)
 
     if python_object_flag:
         graph = ig.Graph()
@@ -114,7 +108,7 @@ def pa_generator(num_nodes, num_edges_per_new_node, delta, seed, parent_column=0
 
 
 @jit(nopython=True)
-def pa_generator_numba(num_nodes, num_edges_per_new_node, delta, rand_float, parent_column):
+def pa_generator_numba(num_nodes, num_edges_per_new_node, delta, rand_float):
     """
     Helper function for pa_generator
 
@@ -129,14 +123,9 @@ def pa_generator_numba(num_nodes, num_edges_per_new_node, delta, rand_float, par
     # from each node (except node 0) pointing to node 0
 
     num_edges = (num_nodes - 1) * num_edges_per_new_node
-    if parent_column == 0:
-        edge_list = [
-            [0, 1 + int(np.floor(ei / num_edges_per_new_node))]
-            for ei in range(num_edges)]
-    else:
-        edge_list = [
-            [1 + int(np.floor(ei / num_edges_per_new_node)), 0]
-            for ei in range(num_edges)]
+    edge_list = [
+        [0, 1 + int(np.floor(ei / num_edges_per_new_node))]
+        for ei in range(num_edges)]
 
     # We maintain the cumulative sum of degree + delta
     cum_shifted_degs = (num_edges_per_new_node + delta) * np.ones(num_nodes)
@@ -158,7 +147,7 @@ def pa_generator_numba(num_nodes, num_edges_per_new_node, delta, rand_float, par
         # print(ei, child, parent, cum_shifted_degs[:child])
 
         # update the graph and the degree sequence
-        edge_list[ei][parent_column] = parent
+        edge_list[ei][0] = parent
         cum_shifted_degs[parent:child] += 1
 
     # for e in edge_list: print(e)
@@ -230,7 +219,7 @@ def create_bins(num_nodes, num_edges_per_new_node, delta, phis):
 
 
 @jit(nopython=True)
-def pa_generator_polya_numba(num_nodes, num_edges_per_new_node, delta, betas, unifs, parent_column, sorted_flag, early_exit=None):
+def pa_generator_polya_numba(num_nodes, num_edges_per_new_node, delta, betas, unifs, sorted_flag, early_exit=None):
 
     # betas is a list of num_nodes independent random variables with
     # betas[i] ~ Beta(
@@ -257,14 +246,9 @@ def pa_generator_polya_numba(num_nodes, num_edges_per_new_node, delta, betas, un
     Ss = np.empty(num_nodes)
     Ss[0] = phis[0]
 
-    if parent_column == 0:
-        edge_list = [
-            [0, 1 + int(ei // num_edges_per_new_node)]
-            for ei in range(num_edges)]
-    else:
-        edge_list = [
-            [1 + int(ei // num_edges_per_new_node), 0]
-            for ei in range(num_edges)]
+    edge_list = [
+        [0, 1 + int(ei // num_edges_per_new_node)]
+        for ei in range(num_edges)]
 
     child = 1  # index of the newly added node
 
@@ -274,6 +258,6 @@ def pa_generator_polya_numba(num_nodes, num_edges_per_new_node, delta, betas, un
             Ss[child] = Ss[child-1] + phis[child]
             child += 1
 
-        edge_list[ei][parent_column] = choose_parent(Ss[:child], unifs[ei])
+        edge_list[ei][0] = choose_parent(Ss[:child], unifs[ei])
 
     return edge_list
