@@ -68,20 +68,39 @@ def check_square_appearance(graph, time):
 
     """
     if type(time) == int:
-        total_nodes = [i for i in range(time)]
-        # try to pick the square with the least sum
-        all_combinations = sorted(
-            [[a, b, c, d] for a, b, c, d in combinations(total_nodes, 4)], key=sum)
+        for last_node_in_square_to_test in range(3, time + 1):
+            for a, b, c in combinations(range(last_node_in_square_to_test), 3):
+                combination = [a, b, c, last_node_in_square_to_test]
+                boo = check_one_combination(graph, combination)
+                if boo: return boo, np.array(combination)
+        
+        # total_nodes = [i for i in range(time)]
+        # # try to pick the square with the least sum
+        # all_combinations = sorted(
+        #     [[a, b, c, d] for a, b, c, d in combinations(total_nodes, 4)], key=sum)
     else:
-        all_combinations = [time]
-    for combination in all_combinations:
-        subgraph = graph.induced_subgraph(combination)
-        mat = get_age_matrix(subgraph)
-        dgms = ripser(mat, distance_matrix=True, maxdim=1)['dgms']
-        if len(dgms[1] == 1):
-            return (True, combination)
+        combination = [time]
+        boo = check_one_combination(graph, combination)
+        if boo: return boo, np.array(combination)
     return (False, None)
+    # for combination in all_combinations:
+    #     subgraph = graph.induced_subgraph(combination)
+    #     mat = get_age_matrix(subgraph)
+    #     dgms = ripser(mat, distance_matrix=True, maxdim=1)['dgms']
+    #     if len(dgms[1] == 1): # This is an innocuous bug. 
+    #                           # It should be len(dgms[1]) == 1
+    #                           # But since positive integers are regarded as True
+    #                           # and since the only possible way to have a hole 
+    #                           # with four points is to have a square
+    #                           # The two codes behave exactly the same
+    #         return (True, np.array(combination))
+    # return (False, None)
 
+def check_one_combination(graph, combination):
+    subgraph = graph.induced_subgraph(combination)
+    mat = get_age_matrix(subgraph)
+    dgms = ripser(mat, distance_matrix=True, maxdim=1)['dgms']
+    return len(dgms[1]) == 1
 
 @jit(nopython=True)
 def check_node_square_connection(edge_list, node, square, m=7):
