@@ -6,16 +6,8 @@ Created on Mon May 30 12:55:48 2022
 @author: CarolineHe
 """
 import numpy as np
-
 import igraph as ig
-
-import tqdm
 from numba import jit
-from numba.typed import List
-
-
-import matplotlib.pyplot as plt
-from datetime import datetime
 
 
 def pa_generator(num_nodes, num_edges_per_new_node, delta, seed, polya_flag=False, sorted_flag=False, python_object_flag=True, early_exit=None):
@@ -72,9 +64,9 @@ def pa_generator(num_nodes, num_edges_per_new_node, delta, seed, polya_flag=Fals
     if not polya_flag:
 
         edge_list_dummy = pa_generator_numba(
-            10, 3, -1, unifs[:27], 0)  # let numba warm up
+            10, 3, -1, unifs[:27])  # let numba warm up
         edge_list = pa_generator_numba(
-            num_nodes, num_edges_per_new_node, delta, unifs, 0)
+            num_nodes, num_edges_per_new_node, delta, unifs)
 
     # polya
     else:
@@ -177,45 +169,6 @@ def choose_parent(cum_shifted_degs, rand_float):
             lower = trial_idx
 
     return upper
-
-
-@jit(nopython=True)
-def choose_parent_bin(Ss, child, rand_float, bin_increment, parents_of_bins, chi):
-
-    scaled_float = rand_float * Ss[child - 1]
-    bin_of_float = int(scaled_float ** (1/chi) // bin_increment)
-    par = int(parents_of_bins[bin_of_float])
-    while scaled_float > Ss[par]:
-        par += 1
-    return par
-
-
-@jit(nopython=True)
-def create_bins(num_nodes, num_edges_per_new_node, delta, phis):
-
-    num_phis_in_bin = 10
-
-    chi = 1 - 1/(2 + delta/num_edges_per_new_node)
-    Ss = np.empty(num_nodes)
-    Ss[0] = phis[0]
-    for i in range(1, num_nodes):
-        Ss[i] = Ss[i-1] + phis[i]
-    # min_diff_S_chi = min(np.diff(Ss**(1/chi)))
-    min_diff_S_chi = min(Ss[num_phis_in_bin:]**(1/chi) -
-                         Ss[:-num_phis_in_bin]**(1/chi))
-    bin_increment = min_diff_S_chi * .95
-
-    parents_of_bins = np.empty(int(Ss[-1] ** (1/chi) // bin_increment))
-    current_par_idx = 0
-
-    for i in range(int(Ss[-1] ** (1/chi) // bin_increment)):
-        b = (i * bin_increment) ** chi
-        if b > Ss[current_par_idx]:
-            # if b > Ss[-1]:
-            current_par_idx += 1
-            # Ss.append(Ss[-1] + phis[current_par_idx])
-        parents_of_bins[i] = current_par_idx
-    return Ss, chi, bin_increment, parents_of_bins
 
 
 @jit(nopython=True)
