@@ -7,7 +7,13 @@ We use Ripser to investigate the topological properties of the clique complex of
 
 
 ## Requirement
-write later
+The project depends on the following packages in Python:
+- Ripser
+- NumPy
+- iGraph
+- Numba
+- Matplotlib
+- Itertools
 
 ## Code
 1. 'simulator_pa.py' contains functions to generate a peferential attachment model using iGraph
