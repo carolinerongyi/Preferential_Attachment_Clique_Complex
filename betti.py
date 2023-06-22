@@ -6,13 +6,22 @@ from numba import jit
 
 def get_age_matrix(graph):
     """
-    Obtain the age matrix of a graph
+    Obtain the age matrix of a graph whose vertices are indexed by integers 0, ..., n-1.
+    The graph is conceived to be built by adding vertices one by one, and the
+    vertices are indexed by the time it is added to the graph.
+    An edge is added to the graph as soon as both endpoints are added to the 
+    graph.
+        
+    The "age" of a vertex is its index.
+    The "age" of an edge is the larger of its two endpoints.
 
     OUTPUT
-    an n x n matrix, where n is the number of nodes in the graph, representing the age of each edge and node
+    an n x n upper triagnular matrix, where n is the number of nodes in the graph
+    The diagonal entries are the "ages" of the vertices.
+    The offdiagonal entries are the "ages" of the edges.
 
     INPUT
-    graph: an igraph object
+    graph: an igraph object whose vertices are indexed by integers 0, ..., n-1
     """
     num_nodes = graph.vcount()
     dm = np.zeros((num_nodes, num_nodes))
@@ -29,13 +38,16 @@ def get_age_matrix(graph):
 @jit(nopython=True)
 def translate_PD_to_betti(diagram, max_fil):
     """
-    Translate a persistence diagram to a list of betti numbers at each time step
+    Translate a persistence diagram to a list of betti numbers at each time step (or filtration value)
+    At time t, the Betti number is the number of independent homology classes
+    that have been born but not been dead. In other words, it is the number of
+    points in the upper-left quadrant whose lower-right corner is (t, t).
 
     OUTPUT
-    list of betti numbers translated from the persistence diagram
+    a numpy array of betti numbers at each time instant
 
     INPUT
-    diagram: persistence diagram of a fixed dimension
+    diagram: a persistence diagram of a fixed dimension
     max_fil: the maximum filtration value in the nested sequence; in preferential attachment complex, 
     it is T, the total number of nodes
 
@@ -58,13 +70,29 @@ def translate_PD_to_betti(diagram, max_fil):
 
 def check_square_appearance(graph, time):
     """
-    Check if there's a square in the graph by a given time. If so, return the nodes that form the square
+    Check if there's a hollow square in the graph by a given time,
+    of if a specific tuple of 4 nodes form a hollow square in the graph.
+    If so, return as well the nodes that form one such square.
+    A hollow square is a square without any diagonals.
 
     OUTPUT
-    (True, [a, b, c, d]) if there's a square in the graph by a given time, where a, b, c, d are the nodes that form the square
-    (False, None) if there's no square in the graph by a given time
+    (True, np.array([a, b, c, d])) if a, b, c, d forms a desired square
+    (False, None) if there is no desired square
 
     INPUT
+    graph: an igraph object whose vertices are indexed by 0, ..., n-1
+    time: Either a specific time limit before which the square is to be found
+    Or the specific square
+    
+    For example, if check_square_appearance(graph, 20) returns (True, [0, 4, 5, 7]),
+    this means there is a square in the graph formed by the first 20 nodes, 
+    and [0, 4, 5, 7] is one such square.
+    If check_square_appearance(graph, 20) returns (False, None),
+    the first 20 nodes do not form any squares.
+    
+    If check_square_appearance(graph, [1, 4, 6, 20]) returns (True, [1, 4, 6, 20]),
+    then [1, 4, 6, 20] is a square. If it returns (False, None), then it does 
+    not form a square in the graph.
 
     """
     if type(time) == int:
@@ -97,13 +125,19 @@ def check_square_appearance(graph, time):
     # return (False, None)
 
 def check_one_combination(graph, combination):
+    """
+    helper function for check_square_appearance(graph, time)
+
+    test whether the tuple of nodes in combination forms a hollow square
+
+    """
     subgraph = graph.induced_subgraph(combination)
     mat = get_age_matrix(subgraph)
     dgms = ripser(mat, distance_matrix=True, maxdim=1)['dgms']
     return len(dgms[1]) == 1
 
 @jit(nopython=True)
-def check_node_square_connection(edge_list, node, square, m=7):
+def check_node_square_connection(edge_list, m, node, square):
     """
     Check if a node is connected to a square in the graph
 
@@ -112,9 +146,14 @@ def check_node_square_connection(edge_list, node, square, m=7):
 
     INPUT
     edge_list: a list of edges in the graph
+               This list must be formed by 
+               edge_list = np.array([e.tuple for e in graph.es]),
+               where graph must be generated simulator_pa.pa_generator
+               because we exploit a specific structure of the graph
+
+    m: the number of edges per new node    
     node: the node to be checked
     square: the list of nodes that form a square
-    m: the number of edges per node
     """
     node_parents = edge_list[(node - 1) * m:node * m, 0]
     for s in square:
@@ -126,14 +165,19 @@ def check_node_square_connection(edge_list, node, square, m=7):
 def get_link_matrix(graph, square, node):
     """
     Get the age matrix of the link of a node relative to the square
+    so that we can compute the nullity in the definition of $\hat{b_{IK}}$ in
+    Section 8. See the paper and the Jupyter notebook for details.
 
     OUTPUT
-    an n x n matrix, where n is the number of nodes in the graph, representing the age of each edge and node relative to the square
+    an n x n matrix, where n is the number of nodes in the link, representing the age of each edge and node relative to the square
+    The "relaive age" of nodes and edges in the square are 1.
+    The "relative age" of nodes and edges in the square are 2.
 
     INPUT
     graph: an igraph object
     square: a list of nodes that form a square
     node: the node to be checked
+    Chunyin's todo: add details
 
     """
     link = graph.neighbors(node)
