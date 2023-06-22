@@ -66,17 +66,25 @@ def translate_PD_to_betti(diagram, max_fil):
         betti[i] = betti[i-1] + betti_increment[i]
 
     return betti
-
+    
 def betti_numbers_of_links(graph, num_nodes, m, maxdim):
     """
-    Return the upper bound for Betti 2 by finding the cumulative sum of Betti 1 of each node's link
+    Return the Betti numbers of the precedent links of the node, where the 
+    precedent link of a vertex if the subcomplex formed by all nodes connected
+    the vertex with a smaller index.
+    
+    It is useful for getting upper and lower bounds of the Betti numbers of the
+    
     
     OUTPUT
-    betti 2 upper bound at each time step as a list
+    a (maxdim + 1) x T array, entry (q, i) is Betti q of the precedent link of 
+    vertex i
     
     INPUT
     graph: igraph object
-    
+    num_nodes: number of nodes in the graph
+    m: number of edges per new nodes
+    maxdim: the maximum dimension at which the Betti numbers are computed
     """
     
     edge_list = np.array([e.tuple for e in graph.es])
@@ -106,9 +114,9 @@ def betti_numbers_of_links(graph, num_nodes, m, maxdim):
             for k, j in dgms[dim]:
                 if j == np.inf: betti_nums[dim, current_node] += 1
 
-        current_node += 1
-        start += m
-        end += m
+        # current_node += 1
+        # start += m
+        # end += m
 
     return betti_nums
 
@@ -197,7 +205,7 @@ def check_node_square_connection(edge_list, m, node, square):
 
     m: the number of edges per new node    
     node: the node to be checked
-    square: the list of nodes that form a square
+    square: the list of nodes that form a hollow square
     """
     node_parents = edge_list[(node - 1) * m:node * m, 0]
     for s in square:
@@ -208,6 +216,8 @@ def check_node_square_connection(edge_list, m, node, square):
 
 def get_link_matrix(graph, square, node):
     """
+    helper function of second_summand_lower_bound
+    
     Get the age matrix of the link of a node relative to the square
     so that we can compute the nullity in the definition of $\hat{b_{IK}}$ in
     Section 8. See the paper and the Jupyter notebook for details.
@@ -219,9 +229,8 @@ def get_link_matrix(graph, square, node):
 
     INPUT
     graph: an igraph object
-    square: a list of nodes that form a square
+    square: a list of nodes that form a hollow square
     node: the node to be checked
-    Chunyin's todo: add details
 
     """
     link = graph.neighbors(node)
@@ -251,10 +260,25 @@ def get_link_matrix(graph, square, node):
     return dm
 
 @jit(nopython=True)
-def first_summand_lower_bound(edge_list, num_nodes, m, square, latest_node_in_square, numba_flag=True):
+def first_summand_lower_bound(edge_list, num_nodes, m, square):
+    """
+    Compute the $\hat \ell^{(t)}$ in Section 8.
+    See the paper and the Jupyter notebook for details.
+
+    OUTPUT
+    An array of length num_nodes, entry t is the value of $\hat \ell^{(t)}$ 
+
+    INPUT
+    graph: an igraph object
+    num_nodes: number of nodes in the graph
+    m: number of new edges per new node
+    square: a list of nodes that form a square
+
+    """    
 
     first_summand = np.zeros(num_nodes) # numba does not like integer arrays
     found_one_flag = 0
+    latest_node_in_square = max(square)
     for i in range(latest_node_in_square + 1, num_nodes):
         if True:
             fill = betti.check_node_square_connection(
@@ -268,12 +292,27 @@ def first_summand_lower_bound(edge_list, num_nodes, m, square, latest_node_in_sq
     return first_summand
 
 def second_summand_lower_bound(edge_list, num_nodes, square, first_summand):
-    
+    """
+    Compute the nullity in the definition of $\hat{b_{IK}}$ in
+    Section 8. See the paper and the Jupyter notebook for details.
+    The nullity is positive when there is a point in the persistence diagram
+    with death time 2
+
+    OUTPUT
+    An array of length num_nodes, entry t is the value of $\hat{b_{IK}}^{(t)}$ 
+
+    INPUT
+    graph: an igraph object
+    num_nodes: number of nodes in the graph
+    square: a list of nodes that form a hollow square
+    first_summand: output of first_summand_lower_bound
+
+    """
     latest_node_in_square = max(square)
     second_summand = np.zeros(num_nodes, dtype = int)
     for i in range(latest_node_in_square + 1, num_nodes):
         if first_summand[i] >= 1:
-            mat = betti.get_link_matrix(graph, square, i)
+            mat = get_link_matrix(graph, square, i)
             dgms = ripser(mat, distance_matrix=True, maxdim=1)['dgms']
             second_summand[i] = int(
                 any([pt[1] == 2 for pt in dgms[1]])
@@ -283,15 +322,26 @@ def second_summand_lower_bound(edge_list, num_nodes, square, first_summand):
 def betti2_lower_bound(graph, time = 20, first_summand = None, second_summand = None, links_betti_nums = None):
 
     """
-    Return the lower bound of Betti 2. 
-    The lower bound is found by the above inequality.
+    Return the lower bound of Betti 2.
+    Summands of individual terms are output as well.
     
     OUTPUT
-    Betti 2 lower bound at each time step as a list
+    output 1: an array of length num_nodes, entry t is a lower bound of
+              Betti 2 of the subcomplex consisting of the first t nodes
+    output 2: output of first_summand_lower_bound, see comments therein
+    output 3: output of second_summand_lower_bound, see comments therein
+    output 4: output of betti_numbers_of_links, see comments therein
     
     INPUT
     graph: igraph object
-    time: the time constraint for the appearance of the square
+    time: the algorithm tries to find a square whose node indices are at most
+          time (if time is an integer) or are precisely entries in time (if time
+          is a 4-tuple of increasing nonnegative integers).
+          If such a square does not exist, the first two terms are zero.
+    first_summand, second_summand, links_betti_nums: optional inputs of 
+        first_summand_lower_bound, second_summand_lower_bound and 
+        betti_numbers_of_links. They may be supplied if these quantities have
+        been saved so as to avoid repeated computation
     """
     
     edge_list = np.array([e.tuple for e in graph.es])
