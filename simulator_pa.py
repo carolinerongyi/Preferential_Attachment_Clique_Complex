@@ -10,7 +10,7 @@ import igraph as ig
 from numba import jit
 
 
-def pa_generator(num_nodes, num_edges_per_new_node, delta, seed, polya_flag=False, sorted_flag=False, python_object_flag=True, early_exit=None):
+def pa_generator(num_nodes, num_edges_per_new_node, delta, seed, polya_flag=False, sorted_flag=False, early_exit=None, python_object_flag=True):
     """
     build a graph with the prefential attachment model in 
     [Garavaglia 2019] (www.doi.org/10.1017/apr.2019.36)
@@ -47,10 +47,26 @@ def pa_generator(num_nodes, num_edges_per_new_node, delta, seed, polya_flag=Fals
         whether edges with the same child are to be sorted by parents in the 
         output graph, this is useful for counting the edges' multiplicity
         If polya_flag == 0, edges will NOT be sorted
+    early_exit
+        nonnegative integer, relevant only if polya_flag == 1
+        terminate the graph construction once the number of nodes reaches
+        early_exit
+        While the distribution is the same as that of the graph with the same 
+        number of nodes, this parameter ensures that the same graph is obtained
+        when the same seed is applied. See example below.
     python_object_flag
         binary, whether to output the graph as an igraph graph object (as 
         opposed to an edge list)
-
+    
+    EXAMPLE
+    
+    graph1 = pa_generator(10, 5, -3, seed = 0, polya_flag=True)
+    graph2 = pa_generator(20, 5, -3, seed = 0, polya_flag=True)
+    graph3 = pa_generator(20, 5, -3, seed = 0, polya_flag=True, early_exit = 10)
+    graph3 is the indced subgraph of graph2 on the first 10 nodes.
+    It is DIFFERENT from graph1 because the graph is sampled differently when 
+    the number of nodes.
+    
     """
     assert (num_nodes > 1)
     assert (0 > delta > -num_edges_per_new_node)
@@ -103,6 +119,7 @@ def pa_generator(num_nodes, num_edges_per_new_node, delta, seed, polya_flag=Fals
 def pa_generator_numba(num_nodes, num_edges_per_new_node, delta, rand_float):
     """
     Helper function for pa_generator
+    sample the graph by definition
 
     """
     # Drawing an outcome from a distribution with pmf p0, ..., pk is the same as drawing a real
@@ -173,6 +190,10 @@ def choose_parent(cum_shifted_degs, rand_float):
 
 @jit(nopython=True)
 def pa_generator_polya_numba(num_nodes, num_edges_per_new_node, delta, betas, unifs, sorted_flag, early_exit=None):
+
+    """
+    sample the graph by the Polya urn model
+    """
 
     # betas is a list of num_nodes independent random variables with
     # betas[i] ~ Beta(
