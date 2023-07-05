@@ -11,7 +11,7 @@ def get_age_matrix(graph):
     vertices are indexed by the time it is added to the graph.
     An edge is added to the graph as soon as both endpoints are added to the 
     graph.
-        
+
     The "age" of a vertex is its index.
     The "age" of an edge is the larger of its two endpoints.
 
@@ -66,29 +66,29 @@ def translate_PD_to_betti(diagram, max_fil):
         betti[i] = betti[i-1] + betti_increment[i]
 
     return betti
-    
+
+
 def betti_numbers_of_links(graph, num_nodes, m, maxdim):
     """
     Return the Betti numbers of the precedent links of the node, where the 
     precedent link of a vertex if the subcomplex formed by all nodes connected
     the vertex with a smaller index.
-    
-    It is useful for getting upper and lower bounds of the Betti numbers of the
-    
-    
+
+    It is useful for getting upper and lower bounds of the Betti numbers
+
     OUTPUT
     a (maxdim + 1) x T array, entry (q, i) is Betti q of the precedent link of 
     vertex i
-    
+
     INPUT
     graph: igraph object
     num_nodes: number of nodes in the graph
     m: number of edges per new nodes
     maxdim: the maximum dimension at which the Betti numbers are computed
     """
-    
+
     edge_list = np.array([e.tuple for e in graph.es])
-    
+
     start = 0
     end = m
     betti_nums = np.zeros((maxdim + 1, num_nodes))
@@ -97,7 +97,7 @@ def betti_numbers_of_links(graph, num_nodes, m, maxdim):
     for current_node in range(1, num_nodes):
         start = (current_node - 1) * m
         end = current_node * m
-    #while start < len(edge_list) and end <= len(edge_list):
+    # while start < len(edge_list) and end <= len(edge_list):
 
         # find the link of each node
         link_list = edge_list[start:end, 0]
@@ -107,18 +107,20 @@ def betti_numbers_of_links(graph, num_nodes, m, maxdim):
         subgraph = graph.induced_subgraph(link_list)
 
         # count the betti numbers
-        mat = betti.get_age_matrix(subgraph)
+        mat = get_age_matrix(subgraph)
         dgms = ripser(mat, distance_matrix=True, maxdim=maxdim)['dgms']
-        
+
         for dim in range(maxdim):
             for k, j in dgms[dim]:
-                if j == np.inf: betti_nums[dim, current_node] += 1
+                if j == np.inf:
+                    betti_nums[dim, current_node] += 1
 
         # current_node += 1
         # start += m
         # end += m
 
     return betti_nums
+
 
 def check_square_appearance(graph, time):
     """
@@ -135,13 +137,13 @@ def check_square_appearance(graph, time):
     graph: an igraph object whose vertices are indexed by 0, ..., n-1
     time: Either a specific time limit before which the square is to be found
     Or the specific square
-    
+
     For example, if check_square_appearance(graph, 20) returns (True, [0, 4, 5, 7]),
     this means there is a square in the graph formed by the first 20 nodes, 
     and [0, 4, 5, 7] is one such square.
     If check_square_appearance(graph, 20) returns (False, None),
     the first 20 nodes do not form any squares.
-    
+
     If check_square_appearance(graph, [1, 4, 6, 20]) returns (True, [1, 4, 6, 20]),
     then [1, 4, 6, 20] is a square. If it returns (False, None), then it does 
     not form a square in the graph.
@@ -152,8 +154,9 @@ def check_square_appearance(graph, time):
             for a, b, c in combinations(range(last_node_in_square_to_test), 3):
                 combination = [a, b, c, last_node_in_square_to_test]
                 boo = check_one_combination(graph, combination)
-                if boo: return boo, np.array(combination)
-        
+                if boo:
+                    return boo, np.array(combination)
+
         # total_nodes = [i for i in range(time)]
         # # try to pick the square with the least sum
         # all_combinations = sorted(
@@ -161,20 +164,22 @@ def check_square_appearance(graph, time):
     else:
         combination = [time]
         boo = check_one_combination(graph, combination)
-        if boo: return boo, np.array(combination)
+        if boo:
+            return boo, np.array(combination)
     return (False, None)
     # for combination in all_combinations:
     #     subgraph = graph.induced_subgraph(combination)
     #     mat = get_age_matrix(subgraph)
     #     dgms = ripser(mat, distance_matrix=True, maxdim=1)['dgms']
-    #     if len(dgms[1] == 1): # This is an innocuous bug. 
+    #     if len(dgms[1] == 1): # This is an innocuous bug.
     #                           # It should be len(dgms[1]) == 1
     #                           # But since positive integers are regarded as True
-    #                           # and since the only possible way to have a hole 
+    #                           # and since the only possible way to have a hole
     #                           # with four points is to have a square
     #                           # The two codes behave exactly the same
     #         return (True, np.array(combination))
     # return (False, None)
+
 
 def check_one_combination(graph, combination):
     """
@@ -188,7 +193,7 @@ def check_one_combination(graph, combination):
     dgms = ripser(mat, distance_matrix=True, maxdim=1)['dgms']
     return len(dgms[1]) == 1
 
-@jit(nopython=True)
+
 def check_node_square_connection(edge_list, m, node, square):
     """
     Check if a node is connected to a square in the graph
@@ -217,7 +222,7 @@ def check_node_square_connection(edge_list, m, node, square):
 def get_link_matrix(graph, square, node):
     """
     helper function of second_summand_lower_bound
-    
+
     Get the age matrix of the link of a node relative to the square
     so that we can compute the nullity in the definition of $\hat{b_{IK}}$ in
     Section 8. See the paper and the Jupyter notebook for details.
@@ -259,6 +264,7 @@ def get_link_matrix(graph, square, node):
 
     return dm
 
+
 @jit(nopython=True)
 def first_summand_lower_bound(edge_list, num_nodes, m, square):
     """
@@ -274,14 +280,14 @@ def first_summand_lower_bound(edge_list, num_nodes, m, square):
     m: number of new edges per new node
     square: a list of nodes that form a square
 
-    """    
+    """
 
-    first_summand = np.zeros(num_nodes) # numba does not like integer arrays
+    first_summand = np.zeros(num_nodes)  # numba does not like integer arrays
     found_one_flag = 0
     latest_node_in_square = max(square)
     for i in range(latest_node_in_square + 1, num_nodes):
         if True:
-            fill = betti.check_node_square_connection(
+            fill = check_node_square_connection(
                 edge_list, m, i, square)
         if fill:
             if found_one_flag == 0:  # The first filling does not count
@@ -291,7 +297,8 @@ def first_summand_lower_bound(edge_list, num_nodes, m, square):
 
     return first_summand
 
-def second_summand_lower_bound(edge_list, num_nodes, square, first_summand):
+
+def second_summand_lower_bound(graph, num_nodes, square, first_summand):
     """
     Compute the nullity in the definition of $\hat{b_{IK}}$ in
     Section 8. See the paper and the Jupyter notebook for details.
@@ -309,7 +316,7 @@ def second_summand_lower_bound(edge_list, num_nodes, square, first_summand):
 
     """
     latest_node_in_square = max(square)
-    second_summand = np.zeros(num_nodes, dtype = int)
+    second_summand = np.zeros(num_nodes, dtype=int)
     for i in range(latest_node_in_square + 1, num_nodes):
         if first_summand[i] >= 1:
             mat = get_link_matrix(graph, square, i)
@@ -319,19 +326,19 @@ def second_summand_lower_bound(edge_list, num_nodes, square, first_summand):
             )
     return second_summand
 
-def betti2_lower_bound(graph, time = 20, first_summand = None, second_summand = None, links_betti_nums = None):
 
+def betti2_lower_bound(graph, time=20, first_summand=None, second_summand=None, links_betti_nums=None):
     """
     Return the lower bound of Betti 2.
     Summands of individual terms are output as well.
-    
+
     OUTPUT
     output 1: an array of length num_nodes, entry t is a lower bound of
               Betti 2 of the subcomplex consisting of the first t nodes
     output 2: output of first_summand_lower_bound, see comments therein
     output 3: output of second_summand_lower_bound, see comments therein
     output 4: output of betti_numbers_of_links, see comments therein
-    
+
     INPUT
     graph: igraph object
     time: the algorithm tries to find a square whose node indices are at most
@@ -343,33 +350,36 @@ def betti2_lower_bound(graph, time = 20, first_summand = None, second_summand = 
         betti_numbers_of_links. They may be supplied if these quantities have
         been saved so as to avoid repeated computation
     """
-    
+
     edge_list = np.array([e.tuple for e in graph.es])
     num_nodes = graph.vcount()
     m = int(len(edge_list)/(num_nodes - 1))
-    
+
     # find if there's a square in the first 20 nodes
-    boo, square = betti.check_square_appearance(graph, time)
-    
+    boo, square = check_square_appearance(graph, time)
+
     if not boo:
-        first_term = np.zeros(num_nodes, dtype = int)
+        first_term = np.zeros(num_nodes, dtype=int)
     else:
         latest_node_in_square = max(square)
         if first_summand is None:
-            first_summand = first_summand_lower_bound(edge_list, num_nodes, m, square, latest_node_in_square)
+            first_summand = first_summand_lower_bound(
+                edge_list, num_nodes, m, square, latest_node_in_square)
             first_summand = first_summand.astype(int)
         first_term = np.cumsum(first_summand)
 
     if not boo:
-        second_term = np.zeros(num_nodes, dtype = int)
+        second_term = np.zeros(num_nodes, dtype=int)
     else:
         if second_summand is None:
-            second_summand = second_summand_lower_bound(edge_list, num_nodes, square, first_summand)
+            second_summand = second_summand_lower_bound(
+                graph, num_nodes, square, first_summand)
         second_term = np.cumsum(second_summand)
 
     if links_betti_nums is None:
-        links_betti_nums = betti_numbers_of_links(graph, num_nodes, m, maxdim = 2)
-    
+        links_betti_nums = betti_numbers_of_links(
+            graph, num_nodes, m, maxdim=2)
+
     third_term = np.cumsum(links_betti_nums[2, :])
-    
+
     return first_term - second_term - third_term, first_summand, second_summand, links_betti_nums
