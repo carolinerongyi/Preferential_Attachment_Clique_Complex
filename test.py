@@ -210,7 +210,7 @@ def betti2_lower_bound(graph, time=20, first_summand=None, second_summand=None, 
 
 m = 7
 delta = -5
-num_nodes = 1000
+num_nodes = 10000
 graph1 = pa_generator(num_nodes, m, delta, 100)
 graph2 = pa_generator(num_nodes, m, delta, 130)
 graph3 = pa_generator(num_nodes, m, delta, 156)
@@ -237,13 +237,15 @@ graph4 = pa_generator(num_nodes, m, delta, 53)
 #     'dgms']  # get the persistence diagrams
 # read the betti numbers from persistence diagrams
 # betti2_actual = betti.translate_PD_to_betti(dgms[2], num_nodes)
-s = [graph1, graph2, graph3, graph4]
+# s = [graph1, graph2, graph3, graph4]
 
-for graph in s:
-    edge_list = [e.tuple for e in graph.es]
+# for graph in s:
+for seed in np.arange(100):
+    graph = pa_generator(num_nodes, m, delta, seed)
+    edge_list = np.array([e.tuple for e in graph.es])
     square = betti.check_square_appearance(graph, 20)[1]
-    a = first_summand_lower_bound(
-        edge_list, num_nodes, m, square, max(square))
+    a = betti.first_summand_lower_bound(
+        edge_list, num_nodes, m, square)
     b = get_first_term_in_lower_bound(
         edge_list, square, max(square), num_nodes)
-    print((a == b).all())
+    if sum(a + b) > 0: print((a == b).all()) # do not print if both lower bounds are 0

@@ -193,7 +193,7 @@ def check_one_combination(graph, combination):
     dgms = ripser(mat, distance_matrix=True, maxdim=1)['dgms']
     return len(dgms[1]) == 1
 
-
+@jit(nopython=True)
 def check_node_square_connection(edge_list, m, node, square):
     """
     Check if a node is connected to a square in the graph
@@ -212,6 +212,7 @@ def check_node_square_connection(edge_list, m, node, square):
     node: the node to be checked
     square: the list of nodes that form a hollow square
     """
+    
     node_parents = edge_list[(node - 1) * m:node * m, 0]
     for s in square:
         if s not in node_parents:
@@ -275,7 +276,8 @@ def first_summand_lower_bound(edge_list, num_nodes, m, square):
     An array of length num_nodes, entry t is the value of $\hat \ell^{(t)}$ 
 
     INPUT
-    graph: an igraph object
+    edge_list: output of np.array([e.tuple for e in graph.es]), where
+               graph is an output of pa_generator
     num_nodes: number of nodes in the graph
     m: number of new edges per new node
     square: a list of nodes that form a square
@@ -286,9 +288,7 @@ def first_summand_lower_bound(edge_list, num_nodes, m, square):
     found_one_flag = 0
     latest_node_in_square = max(square)
     for i in range(latest_node_in_square + 1, num_nodes):
-        if True:
-            fill = check_node_square_connection(
-                edge_list, m, i, square)
+        fill = check_node_square_connection(edge_list, m, i, square)
         if fill:
             if found_one_flag == 0:  # The first filling does not count
                 found_one_flag = 1
@@ -361,10 +361,11 @@ def betti2_lower_bound(graph, time=20, first_summand=None, second_summand=None, 
     if not boo:
         first_term = np.zeros(num_nodes, dtype=int)
     else:
-        latest_node_in_square = max(square)
+        # latest_node_in_square = max(square)
         if first_summand is None:
             first_summand = first_summand_lower_bound(
-                edge_list, num_nodes, m, square, latest_node_in_square)
+                # edge_list, num_nodes, m, square, latest_node_in_square)
+                edge_list, num_nodes, m, square)
             first_summand = first_summand.astype(int)
         first_term = np.cumsum(first_summand)
 
