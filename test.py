@@ -169,7 +169,7 @@ def betti2_lower_bound(graph, time=20, first_summand=None, second_summand=None, 
     time: the time constraint for the appearance of the square
     """
 
-    print('running')
+    # print('running')
 
     edge_list = np.array([e.tuple for e in graph.es])
     num_nodes = graph.vcount()
@@ -178,7 +178,7 @@ def betti2_lower_bound(graph, time=20, first_summand=None, second_summand=None, 
     # find if there's a square in the first 20 nodes
     boo, square = betti.check_square_appearance(graph, time)
 
-    print('found square')
+    # print('found square')
 
     if not boo:
         first_term = np.zeros(num_nodes, dtype=int)
@@ -189,7 +189,7 @@ def betti2_lower_bound(graph, time=20, first_summand=None, second_summand=None, 
                 edge_list, num_nodes, m, square, latest_node_in_square)
         first_term = np.cumsum(first_summand)
 
-    print('done first term')
+    # print('done first term')
 
     if not boo:
         second_term = np.zeros(num_nodes, dtype=int)
@@ -240,12 +240,25 @@ graph4 = pa_generator(num_nodes, m, delta, 53)
 # s = [graph1, graph2, graph3, graph4]
 
 # for graph in s:
-for seed in np.arange(100):
-    graph = pa_generator(num_nodes, m, delta, seed)
-    edge_list = np.array([e.tuple for e in graph.es])
-    square = betti.check_square_appearance(graph, 20)[1]
-    a = betti.first_summand_lower_bound(
-        edge_list, num_nodes, m, square)
-    b = get_first_term_in_lower_bound(
-        edge_list, square, max(square), num_nodes)
-    if sum(a + b) > 0: print((a == b).all()) # do not print if both lower bounds are 0
+# for seed in np.arange(100):
+#     graph = pa_generator(num_nodes, m, delta, seed)
+#     # edge_list = np.array([e.tuple for e in graph.es])
+#     # square = betti.check_square_appearance(graph, 20)[1]
+
+#     a = betti2_lower_bound(graph, time=20)[0]
+#     b = betti.betti2_lower_bound(graph, time=20)[0]
+
+#     if sum(a + b) > 0:
+#         print((a == b).all())  # do not print if both lower bounds are 0
+
+m = 7
+T0 = 60
+seed = 100
+graph1 = pa_generator(T0, m, -6.5, seed)
+graph2 = pa_generator(T0, m, -0.5, seed)
+layout = graph.layout_circle()
+labels = [x for x in range(T0)]
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
+
+ig.plot(graph1, target = ax1, layout=layout, vertex_label = labels, edge_color = '#36454F')
+ig.plot(graph2, target = ax2, layout=layout, vertex_label = labels, edge_color = '#36454F')
