@@ -250,15 +250,3 @@ graph4 = pa_generator(num_nodes, m, delta, 53)
 
 #     if sum(a + b) > 0:
 #         print((a == b).all())  # do not print if both lower bounds are 0
-
-m = 7
-T0 = 60
-seed = 100
-graph1 = pa_generator(T0, m, -6.5, seed)
-graph2 = pa_generator(T0, m, -0.5, seed)
-layout = graph.layout_circle()
-labels = [x for x in range(T0)]
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
-
-ig.plot(graph1, target = ax1, layout=layout, vertex_label = labels, edge_color = '#36454F')
-ig.plot(graph2, target = ax2, layout=layout, vertex_label = labels, edge_color = '#36454F')
