@@ -57,16 +57,16 @@ def pa_generator(num_nodes, num_edges_per_new_node, delta, seed, polya_flag=Fals
     python_object_flag
         binary, whether to output the graph as an igraph graph object (as 
         opposed to an edge list)
-    
+
     EXAMPLE
-    
+
     graph1 = pa_generator(10, 5, -3, seed = 0, polya_flag=True)
     graph2 = pa_generator(20, 5, -3, seed = 0, polya_flag=True)
     graph3 = pa_generator(20, 5, -3, seed = 0, polya_flag=True, early_exit = 10)
     graph3 is the indced subgraph of graph2 on the first 10 nodes.
     It is DIFFERENT from graph1 because the graph is sampled differently when 
     the number of nodes.
-    
+
     """
     assert (num_nodes > 1)
     assert (0 > delta > -num_edges_per_new_node)
@@ -96,10 +96,8 @@ def pa_generator(num_nodes, num_edges_per_new_node, delta, seed, polya_flag=Fals
         )
         betas[0] = 1
 
-        edge_list_dummy = pa_generator_polya_numba(
-            10, 3, -1, betas[:10], unifs[:27], 0, sorted_flag, early_exit=9)
         edge_list = pa_generator_polya_numba(num_nodes, num_edges_per_new_node, delta,
-                                             betas, unifs, 0, sorted_flag, early_exit=early_exit)
+                                             betas, unifs, sorted_flag, early_exit=early_exit)
 
     if python_object_flag:
         graph = ig.Graph()
@@ -190,7 +188,6 @@ def choose_parent(cum_shifted_degs, rand_float):
 
 @jit(nopython=True)
 def pa_generator_polya_numba(num_nodes, num_edges_per_new_node, delta, betas, unifs, sorted_flag, early_exit=None):
-
     """
     sample the graph by the Polya urn model
     """
