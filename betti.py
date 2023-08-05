@@ -162,7 +162,7 @@ def check_square_appearance(graph, time):
         # all_combinations = sorted(
         #     [[a, b, c, d] for a, b, c, d in combinations(total_nodes, 4)], key=sum)
     else:
-        combination = [time]
+        combination = time
         boo = check_one_combination(graph, combination)
         if boo:
             return boo, np.array(combination)
